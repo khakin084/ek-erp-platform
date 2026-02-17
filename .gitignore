@@ -1,0 +1,59 @@
+# Ignore source code inside all service src folders
+ek-core-service/src/**
+ek-auth-service/src/**
+ek-config-service/src/**
+ek-workflow-service/src/**
+ek-stakeholders-service/src/**
+ek-catalog-service/src/**
+ek-inventory-service/src/**
+ek-procurement-service/src/**
+ek-sales-service/src/**
+ek-production-service/src/**
+ek-logistics-service/src/**
+ek-billing-service/src/**
+ek-accounts-service/src/**
+ek-reporting-service/src/**
+ek-projects-service/src/**
+ek-hr-service/src/**
+ek-assets-service/src/**
+
+# Allow empty src folders via .gitkeep
+!ek-core-service/src/.gitkeep
+!ek-auth-service/src/.gitkeep
+!ek-config-service/src/.gitkeep
+!ek-workflow-service/src/.gitkeep
+!ek-stakeholders-service/src/.gitkeep
+!ek-catalog-service/src/.gitkeep
+!ek-inventory-service/src/.gitkeep
+!ek-procurement-service/src/.gitkeep
+!ek-sales-service/src/.gitkeep
+!ek-production-service/src/.gitkeep
+!ek-logistics-service/src/.gitkeep
+!ek-billing-service/src/.gitkeep
+!ek-accounts-service/src/.gitkeep
+!ek-reporting-service/src/.gitkeep
+!ek-projects-service/src/.gitkeep
+!ek-hr-service/src/.gitkeep
+!ek-assets-service/src/.gitkeep
+
+# Docker / runtime data
+ek-pg-data/
+ek-redis-data/
+ek-rabbit-data/
+ek-service-registry-data/
+
+# Build artifacts
+node_modules/
+vendor/
+dist/
+build/
+__pycache__/
+
+# Env files
+.env
+*.env
+
+# OS / editor files
+.DS_Store
+.idea/
+.vscode/

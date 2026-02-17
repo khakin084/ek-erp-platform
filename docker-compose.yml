@@ -1,0 +1,453 @@
+version: "3.9"
+
+name: ek-erp-platform
+
+networks:
+  ek-net:
+    driver: bridge
+
+volumes:
+  ek-pg-data:
+  ek-redis-data:
+  ek-rabbit-data:
+  ek-service-registry-data:
+
+services:
+  # =========================================================
+  # SERVICE REGISTRY (PUBLIC)
+  # =========================================================
+  ek-service-registry:
+    image: hashicorp/consul:1.17
+    container_name: ek-service-registry
+    command: ["agent", "-server", "-bootstrap-expect=1", "-ui", "-client=0.0.0.0"]
+    env_file: .env
+    volumes:
+      - ek-service-registry-data:/consul/data
+    ports:
+      - "${EK_CONSUL_PORT}:8500"
+    networks: [ek-net]
+
+  # =========================================================
+  # DATABASE (PUBLIC)
+  # =========================================================
+  ek-postgres:
+    image: postgres:16
+    container_name: ek-postgres
+    env_file: .env
+    environment:
+      POSTGRES_USER: ${EK_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${EK_POSTGRES_PASSWORD}
+      POSTGRES_DB: ${EK_POSTGRES_ROOT_DB}
+    volumes:
+      - ek-pg-data:/var/lib/postgresql/data
+    ports:
+      - "${EK_POSTGRES_PORT}:5432"
+    networks: [ek-net]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${EK_POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # =========================================================
+  # AUTO DB CREATION (creates all microservice DBs if missing)
+  # =========================================================
+  ek-db-init:
+    image: postgres:16
+    container_name: ek-db-init
+    env_file: .env
+    depends_on:
+      ek-postgres:
+        condition: service_healthy
+    networks: [ek-net]
+    restart: "no"
+    entrypoint: ["/bin/bash", "-lc"]
+    command: >
+      set -euo pipefail;
+      echo "Waiting for Postgres...";
+      export PGPASSWORD="${EK_POSTGRES_PASSWORD}";
+      for db in ${EK_SERVICE_DATABASES}; do
+        echo "Ensuring DB exists: $db";
+        psql -h ek-postgres -U "${EK_POSTGRES_USER}" -d "${EK_POSTGRES_ROOT_DB}" -tc
+        "SELECT 1 FROM pg_database WHERE datname='${db}'" | grep -q 1
+        || psql -h ek-postgres -U "${EK_POSTGRES_USER}" -d "${EK_POSTGRES_ROOT_DB}"
+        -c "CREATE DATABASE \"${db}\" OWNER \"${EK_POSTGRES_USER}\";";
+      done;
+      echo "DB init complete.";
+
+  # =========================================================
+  # REDIS (PUBLIC) - password protected
+  # =========================================================
+  ek-redis:
+    image: redis:7-alpine
+    container_name: ek-redis
+    env_file: .env
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${EK_REDIS_PASSWORD}"]
+    volumes:
+      - ek-redis-data:/data
+    ports:
+      - "${EK_REDIS_PORT}:6379"
+    networks: [ek-net]
+
+  # =========================================================
+  # EVENT BUS (PUBLIC)
+  # =========================================================
+  ek-event-bus:
+    image: rabbitmq:3-management
+    container_name: ek-event-bus
+    env_file: .env
+    environment:
+      RABBITMQ_DEFAULT_USER: ${EK_RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${EK_RABBITMQ_PASSWORD}
+    volumes:
+      - ek-rabbit-data:/var/lib/rabbitmq
+    ports:
+      - "${EK_RABBITMQ_PORT}:5672"
+      - "${EK_RABBITMQ_MGMT_PORT}:15672"
+    networks: [ek-net]
+
+  # =========================================================
+  # CORE SERVICE (PUBLIC BUSINESS ENTRY POINT + frontend host)
+  # =========================================================
+  ek-core-service:
+    image: your-registry/ek-core-service:latest
+    container_name: ek-core-service
+    env_file: .env
+    environment:
+      APP_ENV: local
+      PORT: 8080
+
+      CONSUL_HTTP_ADDR: http://ek-service-registry:8500
+
+      REDIS_URL: redis://:${EK_REDIS_PASSWORD}@ek-redis:6379
+      EVENT_BUS_URL: amqp://${EK_RABBITMQ_USER}:${EK_RABBITMQ_PASSWORD}@ek-event-bus:5672/
+
+      DB_CONNECTION: pgsql
+      DB_HOST: ek-postgres
+      DB_PORT: 5432
+      DB_DATABASE: ek_core_db
+      DB_USERNAME: ${EK_POSTGRES_USER}
+      DB_PASSWORD: ${EK_POSTGRES_PASSWORD}
+
+      # Downstream services (internal only)
+      AUTH_SERVICE_URL: http://ek-auth-service:8000
+      CONFIG_SERVICE_URL: http://ek-config-service:8000
+      WORKFLOW_SERVICE_URL: http://ek-workflow-service:8000
+      STAKEHOLDERS_SERVICE_URL: http://ek-stakeholders-service:8000
+      CATALOG_SERVICE_URL: http://ek-catalog-service:8000
+      INVENTORY_SERVICE_URL: http://ek-inventory-service:8000
+      PROCUREMENT_SERVICE_URL: http://ek-procurement-service:8000
+      SALES_SERVICE_URL: http://ek-sales-service:8000
+      PRODUCTION_SERVICE_URL: http://ek-production-service:8000
+      LOGISTICS_SERVICE_URL: http://ek-logistics-service:8000
+      BILLING_SERVICE_URL: http://ek-billing-service:8000
+      ACCOUNTS_SERVICE_URL: http://ek-accounts-service:8000
+      REPORTING_SERVICE_URL: http://ek-reporting-service:8000
+      PROJECTS_SERVICE_URL: http://ek-projects-service:8000
+      HR_SERVICE_URL: http://ek-hr-service:8000
+      ASSETS_SERVICE_URL: http://ek-assets-service:8000
+
+    depends_on:
+      ek-db-init:
+        condition: service_completed_successfully
+      ek-service-registry:
+        condition: service_started
+      ek-redis:
+        condition: service_started
+      ek-event-bus:
+        condition: service_started
+
+    ports:
+      - "${EK_CORE_PORT}:8080"
+    networks: [ek-net]
+
+  # =========================================================
+  # INTERNAL BUSINESS SERVICES (HEADLESS - no published ports)
+  # =========================================================
+
+  ek-auth-service:
+    image: your-registry/ek-auth-service:latest
+    container_name: ek-auth-service
+    env_file: .env
+    environment:
+      PORT: 8000
+      CONSUL_HTTP_ADDR: http://ek-service-registry:8500
+      EVENT_BUS_URL: amqp://${EK_RABBITMQ_USER}:${EK_RABBITMQ_PASSWORD}@ek-event-bus:5672/
+      REDIS_URL: redis://:${EK_REDIS_PASSWORD}@ek-redis:6379
+      DB_HOST: ek-postgres
+      DB_PORT: 5432
+      DB_DATABASE: ek_auth_db
+      DB_USERNAME: ${EK_POSTGRES_USER}
+      DB_PASSWORD: ${EK_POSTGRES_PASSWORD}
+    depends_on:
+      ek-db-init:
+        condition: service_completed_successfully
+    networks: [ek-net]
+
+  ek-config-service:
+    image: your-registry/ek-config-service:latest
+    container_name: ek-config-service
+    env_file: .env
+    environment:
+      PORT: 8000
+      CONSUL_HTTP_ADDR: http://ek-service-registry:8500
+      DB_HOST: ek-postgres
+      DB_PORT: 5432
+      DB_DATABASE: ek_config_db
+      DB_USERNAME: ${EK_POSTGRES_USER}
+      DB_PASSWORD: ${EK_POSTGRES_PASSWORD}
+    depends_on:
+      ek-db-init:
+        condition: service_completed_successfully
+    networks: [ek-net]
+
+  ek-workflow-service:
+    image: your-registry/ek-workflow-service:latest
+    container_name: ek-workflow-service
+    env_file: .env
+    environment:
+      PORT: 8000
+      CONSUL_HTTP_ADDR: http://ek-service-registry:8500
+      EVENT_BUS_URL: amqp://${EK_RABBITMQ_USER}:${EK_RABBITMQ_PASSWORD}@ek-event-bus:5672/
+      DB_HOST: ek-postgres
+      DB_PORT: 5432
+      DB_DATABASE: ek_workflow_db
+      DB_USERNAME: ${EK_POSTGRES_USER}
+      DB_PASSWORD: ${EK_POSTGRES_PASSWORD}
+    depends_on:
+      ek-db-init:
+        condition: service_completed_successfully
+    networks: [ek-net]
+
+  ek-stakeholders-service:
+    image: your-registry/ek-stakeholders-service:latest
+    container_name: ek-stakeholders-service
+    env_file: .env
+    environment:
+      PORT: 8000
+      CONSUL_HTTP_ADDR: http://ek-service-registry:8500
+      DB_HOST: ek-postgres
+      DB_PORT: 5432
+      DB_DATABASE: ek_stakeholders_db
+      DB_USERNAME: ${EK_POSTGRES_USER}
+      DB_PASSWORD: ${EK_POSTGRES_PASSWORD}
+    depends_on:
+      ek-db-init:
+        condition: service_completed_successfully
+    networks: [ek-net]
+
+  ek-catalog-service:
+    image: your-registry/ek-catalog-service:latest
+    container_name: ek-catalog-service
+    env_file: .env
+    environment:
+      PORT: 8000
+      CONSUL_HTTP_ADDR: http://ek-service-registry:8500
+      DB_HOST: ek-postgres
+      DB_PORT: 5432
+      DB_DATABASE: ek_catalog_db
+      DB_USERNAME: ${EK_POSTGRES_USER}
+      DB_PASSWORD: ${EK_POSTGRES_PASSWORD}
+    depends_on:
+      ek-db-init:
+        condition: service_completed_successfully
+    networks: [ek-net]
+
+  ek-inventory-service:
+    image: your-registry/ek-inventory-service:latest
+    container_name: ek-inventory-service
+    env_file: .env
+    environment:
+      PORT: 8000
+      CONSUL_HTTP_ADDR: http://ek-service-registry:8500
+      EVENT_BUS_URL: amqp://${EK_RABBITMQ_USER}:${EK_RABBITMQ_PASSWORD}@ek-event-bus:5672/
+      DB_HOST: ek-postgres
+      DB_PORT: 5432
+      DB_DATABASE: ek_inventory_db
+      DB_USERNAME: ${EK_POSTGRES_USER}
+      DB_PASSWORD: ${EK_POSTGRES_PASSWORD}
+    depends_on:
+      ek-db-init:
+        condition: service_completed_successfully
+    networks: [ek-net]
+
+  ek-procurement-service:
+    image: your-registry/ek-procurement-service:latest
+    container_name: ek-procurement-service
+    env_file: .env
+    environment:
+      PORT: 8000
+      CONSUL_HTTP_ADDR: http://ek-service-registry:8500
+      EVENT_BUS_URL: amqp://${EK_RABBITMQ_USER}:${EK_RABBITMQ_PASSWORD}@ek-event-bus:5672/
+      DB_HOST: ek-postgres
+      DB_PORT: 5432
+      DB_DATABASE: ek_procurement_db
+      DB_USERNAME: ${EK_POSTGRES_USER}
+      DB_PASSWORD: ${EK_POSTGRES_PASSWORD}
+    depends_on:
+      ek-db-init:
+        condition: service_completed_successfully
+    networks: [ek-net]
+
+  ek-sales-service:
+    image: your-registry/ek-sales-service:latest
+    container_name: ek-sales-service
+    env_file: .env
+    environment:
+      PORT: 8000
+      CONSUL_HTTP_ADDR: http://ek-service-registry:8500
+      EVENT_BUS_URL: amqp://${EK_RABBITMQ_USER}:${EK_RABBITMQ_PASSWORD}@ek-event-bus:5672/
+      DB_HOST: ek-postgres
+      DB_PORT: 5432
+      DB_DATABASE: ek_sales_db
+      DB_USERNAME: ${EK_POSTGRES_USER}
+      DB_PASSWORD: ${EK_POSTGRES_PASSWORD}
+    depends_on:
+      ek-db-init:
+        condition: service_completed_successfully
+    networks: [ek-net]
+
+  ek-production-service:
+    image: your-registry/ek-production-service:latest
+    container_name: ek-production-service
+    env_file: .env
+    environment:
+      PORT: 8000
+      CONSUL_HTTP_ADDR: http://ek-service-registry:8500
+      EVENT_BUS_URL: amqp://${EK_RABBITMQ_USER}:${EK_RABBITMQ_PASSWORD}@ek-event-bus:5672/
+      DB_HOST: ek-postgres
+      DB_PORT: 5432
+      DB_DATABASE: ek_production_db
+      DB_USERNAME: ${EK_POSTGRES_USER}
+      DB_PASSWORD: ${EK_POSTGRES_PASSWORD}
+    depends_on:
+      ek-db-init:
+        condition: service_completed_successfully
+    networks: [ek-net]
+
+  ek-logistics-service:
+    image: your-registry/ek-logistics-service:latest
+    container_name: ek-logistics-service
+    env_file: .env
+    environment:
+      PORT: 8000
+      CONSUL_HTTP_ADDR: http://ek-service-registry:8500
+      EVENT_BUS_URL: amqp://${EK_RABBITMQ_USER}:${EK_RABBITMQ_PASSWORD}@ek-event-bus:5672/
+      DB_HOST: ek-postgres
+      DB_PORT: 5432
+      DB_DATABASE: ek_logistics_db
+      DB_USERNAME: ${EK_POSTGRES_USER}
+      DB_PASSWORD: ${EK_POSTGRES_PASSWORD}
+    depends_on:
+      ek-db-init:
+        condition: service_completed_successfully
+    networks: [ek-net]
+
+  ek-billing-service:
+    image: your-registry/ek-billing-service:latest
+    container_name: ek-billing-service
+    env_file: .env
+    environment:
+      PORT: 8000
+      CONSUL_HTTP_ADDR: http://ek-service-registry:8500
+      EVENT_BUS_URL: amqp://${EK_RABBITMQ_USER}:${EK_RABBITMQ_PASSWORD}@ek-event-bus:5672/
+      DB_HOST: ek-postgres
+      DB_PORT: 5432
+      DB_DATABASE: ek_billing_db
+      DB_USERNAME: ${EK_POSTGRES_USER}
+      DB_PASSWORD: ${EK_POSTGRES_PASSWORD}
+    depends_on:
+      ek-db-init:
+        condition: service_completed_successfully
+    networks: [ek-net]
+
+  ek-accounts-service:
+    image: your-registry/ek-accounts-service:latest
+    container_name: ek-accounts-service
+    env_file: .env
+    environment:
+      PORT: 8000
+      CONSUL_HTTP_ADDR: http://ek-service-registry:8500
+      EVENT_BUS_URL: amqp://${EK_RABBITMQ_USER}:${EK_RABBITMQ_PASSWORD}@ek-event-bus:5672/
+      DB_HOST: ek-postgres
+      DB_PORT: 5432
+      DB_DATABASE: ek_accounts_db
+      DB_USERNAME: ${EK_POSTGRES_USER}
+      DB_PASSWORD: ${EK_POSTGRES_PASSWORD}
+    depends_on:
+      ek-db-init:
+        condition: service_completed_successfully
+    networks: [ek-net]
+
+  ek-reporting-service:
+    image: your-registry/ek-reporting-service:latest
+    container_name: ek-reporting-service
+    env_file: .env
+    environment:
+      PORT: 8000
+      CONSUL_HTTP_ADDR: http://ek-service-registry:8500
+      EVENT_BUS_URL: amqp://${EK_RABBITMQ_USER}:${EK_RABBITMQ_PASSWORD}@ek-event-bus:5672/
+      REDIS_URL: redis://:${EK_REDIS_PASSWORD}@ek-redis:6379
+      DB_HOST: ek-postgres
+      DB_PORT: 5432
+      DB_DATABASE: ek_reporting_db
+      DB_USERNAME: ${EK_POSTGRES_USER}
+      DB_PASSWORD: ${EK_POSTGRES_PASSWORD}
+    depends_on:
+      ek-db-init:
+        condition: service_completed_successfully
+      ek-redis:
+        condition: service_started
+    networks: [ek-net]
+
+  ek-projects-service:
+    image: your-registry/ek-projects-service:latest
+    container_name: ek-projects-service
+    env_file: .env
+    environment:
+      PORT: 8000
+      CONSUL_HTTP_ADDR: http://ek-service-registry:8500
+      DB_HOST: ek-postgres
+      DB_PORT: 5432
+      DB_DATABASE: ek_projects_db
+      DB_USERNAME: ${EK_POSTGRES_USER}
+      DB_PASSWORD: ${EK_POSTGRES_PASSWORD}
+    depends_on:
+      ek-db-init:
+        condition: service_completed_successfully
+    networks: [ek-net]
+
+  ek-hr-service:
+    image: your-registry/ek-hr-service:latest
+    container_name: ek-hr-service
+    env_file: .env
+    environment:
+      PORT: 8000
+      CONSUL_HTTP_ADDR: http://ek-service-registry:8500
+      DB_HOST: ek-postgres
+      DB_PORT: 5432
+      DB_DATABASE: ek_hr_db
+      DB_USERNAME: ${EK_POSTGRES_USER}
+      DB_PASSWORD: ${EK_POSTGRES_PASSWORD}
+    depends_on:
+      ek-db-init:
+        condition: service_completed_successfully
+    networks: [ek-net]
+
+  ek-assets-service:
+    image: your-registry/ek-assets-service:latest
+    container_name: ek-assets-service
+    env_file: .env
+    environment:
+      PORT: 8000
+      CONSUL_HTTP_ADDR: http://ek-service-registry:8500
+      EVENT_BUS_URL: amqp://${EK_RABBITMQ_USER}:${EK_RABBITMQ_PASSWORD}@ek-event-bus:5672/
+      DB_HOST: ek-postgres
+      DB_PORT: 5432
+      DB_DATABASE: ek_assets_db
+      DB_USERNAME: ${EK_POSTGRES_USER}
+      DB_PASSWORD: ${EK_POSTGRES_PASSWORD}
+    depends_on:
+      ek-db-init:
+        condition: service_completed_successfully
+    networks: [ek-net]
