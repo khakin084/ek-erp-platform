@@ -11,71 +11,71 @@ ek-erp-platform/
 ├─ README.md
 ├─ prepare_repo.sh
 │
-├─ ek-core-service/
+├─ ek-core/
 │  ├─ src/.gitkeep
 │  └─ Dockerfile
 │
-├─ ek-auth-service/
+├─ ek-auth/
 │  ├─ src/.gitkeep
 │  └─ Dockerfile
 │
-├─ ek-config-service/
+├─ ek-config/
 │  ├─ src/.gitkeep
 │  └─ Dockerfile
 │
-├─ ek-workflow-service/
+├─ ek-workflow/
 │  ├─ src/.gitkeep
 │  └─ Dockerfile
 │
-├─ ek-stakeholders-service/
+├─ ek-stakeholders/
 │  ├─ src/.gitkeep
 │  └─ Dockerfile
 │
-├─ ek-catalog-service/
+├─ ek-catalog/
 │  ├─ src/.gitkeep
 │  └─ Dockerfile
 │
-├─ ek-inventory-service/
+├─ ek-inventory/
 │  ├─ src/.gitkeep
 │  └─ Dockerfile
 │
-├─ ek-procurement-service/
+├─ ek-procurement/
 │  ├─ src/.gitkeep
 │  └─ Dockerfile
 │
-├─ ek-sales-service/
+├─ ek-sales/
 │  ├─ src/.gitkeep
 │  └─ Dockerfile
 │
-├─ ek-production-service/
+├─ ek-production/
 │  ├─ src/.gitkeep
 │  └─ Dockerfile
 │
-├─ ek-logistics-service/
+├─ ek-logistics/
 │  ├─ src/.gitkeep
 │  └─ Dockerfile
 │
-├─ ek-billing-service/
+├─ ek-billing/
 │  ├─ src/.gitkeep
 │  └─ Dockerfile
 │
-├─ ek-accounts-service/
+├─ ek-accounts/
 │  ├─ src/.gitkeep
 │  └─ Dockerfile
 │
-├─ ek-reporting-service/
+├─ ek-reporting/
 │  ├─ src/.gitkeep
 │  └─ Dockerfile
 │
-├─ ek-projects-service/
+├─ ek-projects/
 │  ├─ src/.gitkeep
 │  └─ Dockerfile
 │
-├─ ek-hr-service/
+├─ ek-hr/
 │  ├─ src/.gitkeep
 │  └─ Dockerfile
 │
-└─ ek-assets-service/
+└─ ek-assets/
    ├─ src/.gitkeep
    └─ Dockerfile
 
@@ -104,33 +104,33 @@ ek-erp-platform/
 ## 📦 Services
 
 ### Core
-- ek-core-service
+- ek-core
 
 ### Platform
-- ek-auth-service
-- ek-config-service
-- ek-workflow-service
+- ek-auth
+- ek-config
+- ek-workflow
 
 ### Master Data
-- ek-stakeholders-service
-- ek-catalog-service
+- ek-stakeholders
+- ek-catalog
 
 ### Operations
-- ek-inventory-service
-- ek-procurement-service
-- ek-sales-service
-- ek-production-service
-- ek-logistics-service
+- ek-inventory
+- ek-procurement
+- ek-sales
+- ek-production
+- ek-logistics
 
 ### Finance
-- ek-billing-service
-- ek-accounts-service
+- ek-billing
+- ek-accounts
 
 ### Supporting
-- ek-reporting-service
-- ek-projects-service
-- ek-hr-service
-- ek-assets-service
+- ek-reporting
+- ek-projects
+- ek-hr
+- ek-assets
 
 ---
 

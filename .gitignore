@@ -1,46 +1,46 @@
 # Ignore source code inside all service src folders
-ek-core-service/src/**
-ek-auth-service/src/**
-ek-config-service/src/**
-ek-workflow-service/src/**
-ek-stakeholders-service/src/**
-ek-catalog-service/src/**
-ek-inventory-service/src/**
-ek-procurement-service/src/**
-ek-sales-service/src/**
-ek-production-service/src/**
-ek-logistics-service/src/**
-ek-billing-service/src/**
-ek-accounts-service/src/**
-ek-reporting-service/src/**
-ek-projects-service/src/**
-ek-hr-service/src/**
-ek-assets-service/src/**
+ek-core/src/**
+ek-auth/src/**
+ek-config/src/**
+ek-workflow/src/**
+ek-stakeholders/src/**
+ek-catalog/src/**
+ek-inventory/src/**
+ek-procurement/src/**
+ek-sales/src/**
+ek-production/src/**
+ek-logistics/src/**
+ek-billing/src/**
+ek-accounts/src/**
+ek-reporting/src/**
+ek-projects/src/**
+ek-hr/src/**
+ek-assets/src/**
 
 # Allow empty src folders via .gitkeep
-!ek-core-service/src/.gitkeep
-!ek-auth-service/src/.gitkeep
-!ek-config-service/src/.gitkeep
-!ek-workflow-service/src/.gitkeep
-!ek-stakeholders-service/src/.gitkeep
-!ek-catalog-service/src/.gitkeep
-!ek-inventory-service/src/.gitkeep
-!ek-procurement-service/src/.gitkeep
-!ek-sales-service/src/.gitkeep
-!ek-production-service/src/.gitkeep
-!ek-logistics-service/src/.gitkeep
-!ek-billing-service/src/.gitkeep
-!ek-accounts-service/src/.gitkeep
-!ek-reporting-service/src/.gitkeep
-!ek-projects-service/src/.gitkeep
-!ek-hr-service/src/.gitkeep
-!ek-assets-service/src/.gitkeep
+!ek-core/src/.gitkeep
+!ek-auth/src/.gitkeep
+!ek-config/src/.gitkeep
+!ek-workflow/src/.gitkeep
+!ek-stakeholders/src/.gitkeep
+!ek-catalog/src/.gitkeep
+!ek-inventory/src/.gitkeep
+!ek-procurement/src/.gitkeep
+!ek-sales/src/.gitkeep
+!ek-production/src/.gitkeep
+!ek-logistics/src/.gitkeep
+!ek-billing/src/.gitkeep
+!ek-accounts/src/.gitkeep
+!ek-reporting/src/.gitkeep
+!ek-projects/src/.gitkeep
+!ek-hr/src/.gitkeep
+!ek-assets/src/.gitkeep
 
 # Docker / runtime data
 ek-pg-data/
 ek-redis-data/
 ek-rabbit-data/
-ek-service-registry-data/
+ek-registry-data/
 
 # Build artifacts
 node_modules/
