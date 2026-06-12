@@ -1,4 +1,4 @@
-name: ek-erp-platform
+name: ek-erp
 
 networks:
   ek-net:
@@ -64,24 +64,25 @@ services:
       - ek-net
     restart: "no"
     entrypoint: ["/bin/bash", "-c"]
-    command: |
-      set -e
-      export PGPASSWORD="${EK_POSTGRES_PASSWORD}"
+    command:
+      - |
+        set -e
+        export PGPASSWORD="${EK_POSTGRES_PASSWORD}"
 
-      for db in ${EK_SERVICE_DATABASES}; do
-        echo "Ensuring database exists: $$db"
+        for db in ${EK_SERVICE_DATABASES}; do
+          echo "Ensuring database exists: $$db"
 
-        DB_EXISTS=$(psql -h ek-postgres -U "${EK_POSTGRES_USER}" -d "${EK_POSTGRES_ROOT_DB}" \
-          -tAc "SELECT 1 FROM pg_database WHERE datname='$$db'")
+          DB_EXISTS=$(psql -h ek-postgres -U "${EK_POSTGRES_USER}" -d "${EK_POSTGRES_ROOT_DB}" \
+            -tAc "SELECT 1 FROM pg_database WHERE datname='$$db'")
 
-        if [ "$$DB_EXISTS" != "1" ]; then
-          echo "Creating database: $$db"
-          psql -h ek-postgres -U "${EK_POSTGRES_USER}" -d "${EK_POSTGRES_ROOT_DB}" \
-            -c "CREATE DATABASE \"$$db\" OWNER \"${EK_POSTGRES_USER}\";"
-        fi
-      done
+          if [ "$$DB_EXISTS" != "1" ]; then
+            echo "Creating database: $$db"
+            psql -h ek-postgres -U "${EK_POSTGRES_USER}" -d "${EK_POSTGRES_ROOT_DB}" \
+              -c "CREATE DATABASE \"$$db\" OWNER \"${EK_POSTGRES_USER}\";"
+          fi
+        done
 
-      echo "Database initialization complete."
+        echo "Database initialization complete."
 
   # =========================================================
   # REDIS (PUBLIC)
@@ -324,27 +325,28 @@ services:
         condition: service_completed_successfully
     networks:
       - ek-net
+      
 
-  ek-procurement:
+  ek-expenses:
     build:
-      context: ./ek-procurement
-    container_name: ek-procurement
+      context: ./ek-expenses
+    container_name: ek-expenses
     env_file: .env
     environment:
       CONSUL_HTTP_ADDR: http://ek-registry:8500
-      SERVICE_NAME: ek-procurement
-      SERVICE_ID: ek-procurement
+      SERVICE_NAME: ek-expenses
+      SERVICE_ID: ek-expenses
       SERVICE_PORT: 80
-      SERVICE_ADDRESS: ek-procurement
+      SERVICE_ADDRESS: ek-expenses
       SERVICE_HEALTH_PATH: /health
 
       DB_HOST: ek-postgres
       DB_PORT: 5432
-      DB_DATABASE: ek_procurement_db
+      DB_DATABASE: ek_expenses_db
       DB_USERNAME: ${EK_POSTGRES_USER}
       DB_PASSWORD: ${EK_POSTGRES_PASSWORD}
     volumes:
-      - ./ek-procurement/src:/var/www/html
+      - ./ek-expenses/src:/var/www/html
     depends_on:
       ek-registry:
         condition: service_started
@@ -352,27 +354,28 @@ services:
         condition: service_completed_successfully
     networks:
       - ek-net
+      
 
-  ek-sales:
+  ek-orders:
     build:
-      context: ./ek-sales
-    container_name: ek-sales
+      context: ./ek-orders
+    container_name: ek-orders
     env_file: .env
     environment:
       CONSUL_HTTP_ADDR: http://ek-registry:8500
-      SERVICE_NAME: ek-sales
-      SERVICE_ID: ek-sales
+      SERVICE_NAME: ek-orders
+      SERVICE_ID: ek-orders
       SERVICE_PORT: 80
-      SERVICE_ADDRESS: ek-sales
+      SERVICE_ADDRESS: ek-orders
       SERVICE_HEALTH_PATH: /health
 
       DB_HOST: ek-postgres
       DB_PORT: 5432
-      DB_DATABASE: ek_sales_db
+      DB_DATABASE: ek_orders_db
       DB_USERNAME: ${EK_POSTGRES_USER}
       DB_PASSWORD: ${EK_POSTGRES_PASSWORD}
     volumes:
-      - ./ek-sales/src:/var/www/html
+      - ./ek-orders/src:/var/www/html
     depends_on:
       ek-registry:
         condition: service_started
@@ -380,6 +383,7 @@ services:
         condition: service_completed_successfully
     networks:
       - ek-net
+  
 
   ek-production:
     build:
