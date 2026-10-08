@@ -31,7 +31,7 @@ ek-erp-platform/
 │  ├─ src/.gitkeep
 │  └─ Dockerfile
 │
-├─ ek-catalog/
+├─ ek-itemmaster/
 │  ├─ src/.gitkeep
 │  └─ Dockerfile
 │
@@ -113,7 +113,7 @@ ek-erp-platform/
 
 ### Master Data
 - ek-stakeholders
-- ek-catalog
+- ek-itemmaster
 
 ### Operations
 - ek-inventory

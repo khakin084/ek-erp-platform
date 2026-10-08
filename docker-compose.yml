@@ -9,6 +9,7 @@ volumes:
   ek-redis-data:
   ek-rabbit-data:
   ek-registry-data:
+  ek-attachments:
 
 services:
 
@@ -90,8 +91,14 @@ services:
   ek-redis:
     image: redis:7-alpine
     container_name: ek-redis
-    env_file: .env
-    command: ["redis-server", "--requirepass", "${EK_REDIS_PASSWORD}"]
+    command:
+      - redis-server
+      - --requirepass
+      - ${EK_REDIS_PASSWORD}
+      - --maxmemory
+      - 256mb
+      - --maxmemory-policy
+      - allkeys-lru
     volumes:
       - ek-redis-data:/data
     ports:
@@ -140,8 +147,11 @@ services:
       DB_DATABASE: ek_core_db
       DB_USERNAME: ${EK_POSTGRES_USER}
       DB_PASSWORD: ${EK_POSTGRES_PASSWORD}
+
+      ATTACHMENTS_ROOT: /var/ek-attachments
     volumes:
       - ./ek-core/src:/var/www/html
+      - ek-attachments:/var/ek-attachments
     depends_on:
       ek-registry:
         condition: service_started
@@ -175,8 +185,11 @@ services:
       DB_USERNAME: ${EK_POSTGRES_USER}
       DB_PASSWORD: ${EK_POSTGRES_PASSWORD}
       EVENT_BUS_URL: amqp://${EK_RABBITMQ_USER}:${EK_RABBITMQ_PASSWORD}@ek-event-bus:5672/
+
+      ATTACHMENTS_ROOT: /var/ek-attachments
     volumes:
       - ./ek-auth/src:/var/www/html
+      - ek-attachments:/var/ek-attachments
     depends_on:
       ek-registry:
         condition: service_started
@@ -231,8 +244,11 @@ services:
       DB_DATABASE: ek_approvals_db
       DB_USERNAME: ${EK_POSTGRES_USER}
       DB_PASSWORD: ${EK_POSTGRES_PASSWORD}
+
+      ATTACHMENTS_ROOT: /var/ek-attachments
     volumes:
       - ./ek-approvals/src:/var/www/html
+      - ek-attachments:/var/ek-attachments
     depends_on:
       ek-registry:
         condition: service_started
@@ -241,26 +257,29 @@ services:
     networks:
       - ek-net
 
-  ek-stakeholders:
+  ek-trades:
     build:
-      context: ./ek-stakeholders
-    container_name: ek-stakeholders
+      context: ./ek-trades
+    container_name: ek-trades
     env_file: .env
     environment:
       CONSUL_HTTP_ADDR: http://ek-registry:8500
-      SERVICE_NAME: ek-stakeholders
-      SERVICE_ID: ek-stakeholders
+      SERVICE_NAME: ek-trades
+      SERVICE_ID: ek-trades
       SERVICE_PORT: 80
-      SERVICE_ADDRESS: ek-stakeholders
+      SERVICE_ADDRESS: ek-trades
       SERVICE_HEALTH_PATH: /health
 
       DB_HOST: ek-postgres
       DB_PORT: 5432
-      DB_DATABASE: ek_stakeholders_db
+      DB_DATABASE: ek_trades_db
       DB_USERNAME: ${EK_POSTGRES_USER}
       DB_PASSWORD: ${EK_POSTGRES_PASSWORD}
+
+      ATTACHMENTS_ROOT: /var/ek-attachments
     volumes:
-      - ./ek-stakeholders/src:/var/www/html
+      - ./ek-trades/src:/var/www/html
+      - ek-attachments:/var/ek-attachments
     depends_on:
       ek-registry:
         condition: service_started
@@ -269,26 +288,29 @@ services:
     networks:
       - ek-net
 
-  ek-catalog:
+  ek-itemmaster:
     build:
-      context: ./ek-catalog
-    container_name: ek-catalog
+      context: ./ek-itemmaster
+    container_name: ek-itemmaster
     env_file: .env
     environment:
       CONSUL_HTTP_ADDR: http://ek-registry:8500
-      SERVICE_NAME: ek-catalog
-      SERVICE_ID: ek-catalog
+      SERVICE_NAME: ek-itemmaster
+      SERVICE_ID: ek-itemmaster
       SERVICE_PORT: 80
-      SERVICE_ADDRESS: ek-catalog
+      SERVICE_ADDRESS: ek-itemmaster
       SERVICE_HEALTH_PATH: /health
 
       DB_HOST: ek-postgres
       DB_PORT: 5432
-      DB_DATABASE: ek_catalog_db
+      DB_DATABASE: ek_itemmaster_db
       DB_USERNAME: ${EK_POSTGRES_USER}
       DB_PASSWORD: ${EK_POSTGRES_PASSWORD}
+
+      ATTACHMENTS_ROOT: /var/ek-attachments
     volumes:
-      - ./ek-catalog/src:/var/www/html
+      - ./ek-itemmaster/src:/var/www/html
+      - ek-attachments:/var/ek-attachments
     depends_on:
       ek-registry:
         condition: service_started
@@ -316,8 +338,11 @@ services:
       DB_USERNAME: ${EK_POSTGRES_USER}
       DB_PASSWORD: ${EK_POSTGRES_PASSWORD}
       EVENT_BUS_URL: amqp://${EK_RABBITMQ_USER}:${EK_RABBITMQ_PASSWORD}@ek-event-bus:5672/
+
+      ATTACHMENTS_ROOT: /var/ek-attachments
     volumes:
       - ./ek-inventory/src:/var/www/html
+      - ek-attachments:/var/ek-attachments
     depends_on:
       ek-registry:
         condition: service_started
@@ -345,8 +370,11 @@ services:
       DB_DATABASE: ek_expenses_db
       DB_USERNAME: ${EK_POSTGRES_USER}
       DB_PASSWORD: ${EK_POSTGRES_PASSWORD}
+
+      ATTACHMENTS_ROOT: /var/ek-attachments
     volumes:
       - ./ek-expenses/src:/var/www/html
+      - ek-attachments:/var/ek-attachments
     depends_on:
       ek-registry:
         condition: service_started
@@ -354,36 +382,6 @@ services:
         condition: service_completed_successfully
     networks:
       - ek-net
-      
-
-  ek-orders:
-    build:
-      context: ./ek-orders
-    container_name: ek-orders
-    env_file: .env
-    environment:
-      CONSUL_HTTP_ADDR: http://ek-registry:8500
-      SERVICE_NAME: ek-orders
-      SERVICE_ID: ek-orders
-      SERVICE_PORT: 80
-      SERVICE_ADDRESS: ek-orders
-      SERVICE_HEALTH_PATH: /health
-
-      DB_HOST: ek-postgres
-      DB_PORT: 5432
-      DB_DATABASE: ek_orders_db
-      DB_USERNAME: ${EK_POSTGRES_USER}
-      DB_PASSWORD: ${EK_POSTGRES_PASSWORD}
-    volumes:
-      - ./ek-orders/src:/var/www/html
-    depends_on:
-      ek-registry:
-        condition: service_started
-      ek-db-init:
-        condition: service_completed_successfully
-    networks:
-      - ek-net
-  
 
   ek-production:
     build:
@@ -403,8 +401,11 @@ services:
       DB_DATABASE: ek_production_db
       DB_USERNAME: ${EK_POSTGRES_USER}
       DB_PASSWORD: ${EK_POSTGRES_PASSWORD}
+
+      ATTACHMENTS_ROOT: /var/ek-attachments
     volumes:
       - ./ek-production/src:/var/www/html
+      - ek-attachments:/var/ek-attachments
     depends_on:
       ek-registry:
         condition: service_started
@@ -431,36 +432,11 @@ services:
       DB_DATABASE: ek_logistics_db
       DB_USERNAME: ${EK_POSTGRES_USER}
       DB_PASSWORD: ${EK_POSTGRES_PASSWORD}
+
+      ATTACHMENTS_ROOT: /var/ek-attachments
     volumes:
       - ./ek-logistics/src:/var/www/html
-    depends_on:
-      ek-registry:
-        condition: service_started
-      ek-db-init:
-        condition: service_completed_successfully
-    networks:
-      - ek-net
-
-  ek-billing:
-    build:
-      context: ./ek-billing
-    container_name: ek-billing
-    env_file: .env
-    environment:
-      CONSUL_HTTP_ADDR: http://ek-registry:8500
-      SERVICE_NAME: ek-billing
-      SERVICE_ID: ek-billing
-      SERVICE_PORT: 80
-      SERVICE_ADDRESS: ek-billing
-      SERVICE_HEALTH_PATH: /health
-
-      DB_HOST: ek-postgres
-      DB_PORT: 5432
-      DB_DATABASE: ek_billing_db
-      DB_USERNAME: ${EK_POSTGRES_USER}
-      DB_PASSWORD: ${EK_POSTGRES_PASSWORD}
-    volumes:
-      - ./ek-billing/src:/var/www/html
+      - ek-attachments:/var/ek-attachments
     depends_on:
       ek-registry:
         condition: service_started
@@ -487,8 +463,11 @@ services:
       DB_DATABASE: ek_accounts_db
       DB_USERNAME: ${EK_POSTGRES_USER}
       DB_PASSWORD: ${EK_POSTGRES_PASSWORD}
+
+      ATTACHMENTS_ROOT: /var/ek-attachments
     volumes:
       - ./ek-accounts/src:/var/www/html
+      - ek-attachments:/var/ek-attachments
     depends_on:
       ek-registry:
         condition: service_started
@@ -515,8 +494,11 @@ services:
       DB_DATABASE: ek_reporting_db
       DB_USERNAME: ${EK_POSTGRES_USER}
       DB_PASSWORD: ${EK_POSTGRES_PASSWORD}
+
+      ATTACHMENTS_ROOT: /var/ek-attachments
     volumes:
       - ./ek-reporting/src:/var/www/html
+      - ek-attachments:/var/ek-attachments
     depends_on:
       ek-registry:
         condition: service_started
@@ -543,8 +525,11 @@ services:
       DB_DATABASE: ek_projects_db
       DB_USERNAME: ${EK_POSTGRES_USER}
       DB_PASSWORD: ${EK_POSTGRES_PASSWORD}
+
+      ATTACHMENTS_ROOT: /var/ek-attachments
     volumes:
       - ./ek-projects/src:/var/www/html
+      - ek-attachments:/var/ek-attachments
     depends_on:
       ek-registry:
         condition: service_started
@@ -571,8 +556,11 @@ services:
       DB_DATABASE: ek_hr_db
       DB_USERNAME: ${EK_POSTGRES_USER}
       DB_PASSWORD: ${EK_POSTGRES_PASSWORD}
+
+      ATTACHMENTS_ROOT: /var/ek-attachments
     volumes:
       - ./ek-hr/src:/var/www/html
+      - ek-attachments:/var/ek-attachments
     depends_on:
       ek-registry:
         condition: service_started
@@ -599,8 +587,11 @@ services:
       DB_DATABASE: ek_assets_db
       DB_USERNAME: ${EK_POSTGRES_USER}
       DB_PASSWORD: ${EK_POSTGRES_PASSWORD}
+
+      ATTACHMENTS_ROOT: /var/ek-attachments
     volumes:
       - ./ek-assets/src:/var/www/html
+      - ek-attachments:/var/ek-attachments
     depends_on:
       ek-registry:
         condition: service_started

@@ -1,4 +1,4 @@
-FROM php:8.2-apache
+FROM php:8.4-apache
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
@@ -44,6 +44,9 @@ WORKDIR /var/www/html
 # Fix permissions
 RUN chown -R www-data:www-data /var/www/html
 RUN chmod -R 755 /var/www/html
+
+# Fix volume ownership
+RUN mkdir -p /var/ek-attachments && chown www-data:www-data /var/ek-attachments
 
 # Set entrypoint to Consul registration script
 ENTRYPOINT ["/usr/local/bin/consul-register.sh"]

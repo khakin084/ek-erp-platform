@@ -45,5 +45,8 @@ WORKDIR /var/www/html
 RUN chown -R www-data:www-data /var/www/html
 RUN chmod -R 755 /var/www/html
 
+# Fix volume ownership
+RUN mkdir -p /var/ek-attachments && chown www-data:www-data /var/ek-attachments
+
 # Set entrypoint to Consul registration script
 ENTRYPOINT ["/usr/local/bin/consul-register.sh"]
